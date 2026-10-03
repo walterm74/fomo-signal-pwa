@@ -1,211 +1,186 @@
-/* ═══════════════════════════════════════════
-   FOMO Smart Signal Dashboard — app.js
-   VERSIÓN CORREGIDA — Datos reales + fallback
-   ═══════════════════════════════════════════ */
-
 'use strict';
 
-// ── Registrar Service Worker ──
+// ── Service Worker ──
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
-      .then(reg => console.log('✅ SW registrado:', reg.scope))
-      .catch(err => console.error('❌ SW error:', err));
+      .then(r  => console.log('✅ SW:', r.scope))
+      .catch(e => console.warn('SW error:', e));
   });
 }
 
-// ── Constantes ──
-const REFRESH_INTERVAL = 60000; // 60 segundos (evita límite de API)
-let   currentFilter    = 'all';
-let   refreshTimer     = null;
-let   allSignals       = [];
+// ── Estado global ──
+const REFRESH_MS    = 120000;
+let   currentFilter = 'all';
+let   refreshTimer  = null;
+let   allSignals    = [];
+let   currentTab    = 'trending';
 
-// ── Tokens base ──
-const TOKEN_POOL = [
-  { name: 'BONK',     chain: 'SOL',   emoji: '🐕' },
-  { name: 'WIF',      chain: 'SOL',   emoji: '🐶' },
-  { name: 'POPCAT',   chain: 'SOL',   emoji: '🐱' },
-  { name: 'BOME',     chain: 'SOL',   emoji: '💣' },
-  { name: 'DEGEN',    chain: 'BASE',  emoji: '🎰' },
-  { name: 'BRETT',    chain: 'BASE',  emoji: '🐸' },
-  { name: 'TOSHI',    chain: 'BASE',  emoji: '🐱' },
-  { name: 'NORMIE',   chain: 'BASE',  emoji: '😐' },
-  { name: 'FLOKI',    chain: 'BNB',   emoji: '⚡' },
-  { name: 'BABYDOGE', chain: 'BNB',   emoji: '🐶' },
-  { name: 'CAKE',     chain: 'BNB',   emoji: '🎂' },
-  { name: 'MON',      chain: 'MONAD', emoji: '🟣' },
-  { name: 'SHIB',     chain: 'ETH',   emoji: '🐕' },
-  { name: 'PEPE',     chain: 'ETH',   emoji: '🐸' },
-  { name: 'TURBO',    chain: 'ETH',   emoji: '🚀' },
-];
+const CHAIN_EMOJI = {
+  SOL: '◎', ETH: 'Ξ', BASE: '🔵',
+  BNB: '🟡', MONAD: '🟣', RH: '🔴',
+};
 
-// ─────────────────────────────────────────────
-//  ✅ FUNCIÓN 1: generateSignals()
-//  Datos DEMO — se usa como fallback si la API falla
-//  ⚠️ NO BORRAR — fetchRealSignals() la necesita
-// ─────────────────────────────────────────────
-function generateSignals() {
-  const count   = Math.floor(Math.random() * 6) + 8;
-  const signals = [];
-  const used    = new Set();
-
-  for (let i = 0; i < count; i++) {
-    let token;
-    do {
-      token = TOKEN_POOL[Math.floor(Math.random() * TOKEN_POOL.length)];
-    } while (used.has(token.name));
-    used.add(token.name);
-
-    const score    = Math.floor(Math.random() * 40) + 60;
-    const strength = score >= 85 ? 'strong' : score >= 72 ? 'medium' : 'weak';
-    const change1h = parseFloat((Math.random() * 30 - 5).toFixed(2));
-    const change24h= parseFloat((Math.random() * 60 - 15).toFixed(2));
-    const volume   = parseFloat((Math.random() * 9.5 + 0.5).toFixed(1));
-    const mcap     = parseFloat((Math.random() * 95 + 5).toFixed(0));
-    const holders  = Math.floor(Math.random() * 45000) + 5000;
-    const momentum = Math.floor(Math.random() * 35) + 60;
-
-    signals.push({
-      id: `${token.name}-${Date.now()}-${i}`,
-      token:    token.name,
-      chain:    token.chain,
-      emoji:    token.emoji,
-      strength,
-      score,
-      change1h,
-      change24h,
-      volume,
-      mcap,
-      holders,
-      momentum,
+// ── Datos DEMO (plan B si la API falla) ──
+function generateDemoSignals() {
+  const DEMO = [
+    { token:'BONK',   address:'DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263', chain:'SOL',  emoji:'🐕' },
+    { token:'WIF',    address:'EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm', chain:'SOL',  emoji:'🐶' },
+    { token:'POPCAT', address:'7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr', chain:'SOL',  emoji:'🐱' },
+    { token:'BRETT',  address:'0x532f27101965dd16442e59d40670faf5ebb142e4',     chain:'BASE', emoji:'🐸' },
+    { token:'DEGEN',  address:'0x4ed4e862860bed51a9570b96d89af5e1b0efefed',     chain:'BASE', emoji:'🎰' },
+    { token:'PEPE',   address:'0x6982508145454ce325ddbe47a25d4ec3d2311933',     chain:'ETH',  emoji:'🐸' },
+    { token:'SHIB',   address:'0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce',     chain:'ETH',  emoji:'🐕' },
+    { token:'FLOKI',  address:'0xcf0c122c6b73ff809c693db761e7baebe62b6a2e',     chain:'BNB',  emoji:'⚡' },
+  ];
+  return DEMO.map((t, i) => {
+    const score    = Math.floor(Math.random() * 35) + 60;
+    const strength = score >= 82 ? 'strong' : score >= 68 ? 'medium' : 'weak';
+    return {
+      id: `demo-${t.token}-${i}`,
+      rank: i + 1,
+      token: t.token, name: t.token,
+      address: t.address, chain: t.chain, emoji: t.emoji,
+      strength, score,
+      change24h: parseFloat((Math.random() * 80 - 10).toFixed(1)),
+      price: (Math.random() * 0.01).toFixed(6),
+      mcap: parseFloat((Math.random() * 50 + 1).toFixed(1)),
+      holders: Math.floor(Math.random() * 5000 + 500),
+      momentum: Math.floor(Math.random() * 30 + 60),
       timestamp: new Date(),
-      isDemo: true,            // ← marca para mostrar aviso
-    });
-  }
-
-  return signals.sort((a, b) => b.score - a.score);
+      isDemo: true,
+    };
+  }).sort((a, b) => b.score - a.score);
 }
 
-// ─────────────────────────────────────────────
-//  ✅ FUNCIÓN 2: fetchRealSignals()
-//  Datos REALES desde CoinGecko API (gratis)
-//  Si falla → llama a generateSignals() como plan B
-// ─────────────────────────────────────────────
-async function fetchRealSignals() {
+// ── Fetch datos reales de fomo.family ──
+async function fetchFomoTokens(board) {
   const dot = document.getElementById('statusDot');
   const txt = document.getElementById('statusText');
-
   dot.className   = 'status-dot';
-  txt.textContent = 'Cargando datos reales...';
+  txt.textContent = 'Conectando a fomo.family...';
 
   try {
-    const url =
-      'https://api.coingecko.com/api/v3/coins/markets' +
-      '?vs_currency=usd' +
-      '&ids=bonk,dogwifhat,popcat,book-of-meme,degen-base,' +
-      'brett,toshi,floki,baby-doge-coin,shiba-inu,pepe,turbo' +
-      '&order=volume_desc' +
-      '&per_page=12' +
-      '&sparkline=false' +
-      '&price_change_percentage=1h,24h,7d';
+    const res = await fetch(`/api/fomo?type=${board}&limit=30`);
 
-    const response = await fetch(url);
-
-    // Si la API responde con error (429 = demasiadas peticiones, etc.)
-    if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      if (err.hint) showToast('⚙️ ' + err.hint, 6000);
+      throw new Error('Proxy error ' + res.status);
     }
 
-    const coins = await response.json();
+    const data = await res.json();
 
-    // Verificar que realmente llegaron datos
-    if (!Array.isArray(coins) || coins.length === 0) {
-      throw new Error('Sin datos de la API');
+    if (data.available === false) {
+      throw new Error('Board no disponible aún');
     }
 
-    const chainMap = {
-      'bonk': 'SOL', 'dogwifhat': 'SOL', 'popcat': 'SOL', 'book-of-meme': 'SOL',
-      'degen-base': 'BASE', 'brett': 'BASE', 'toshi': 'BASE',
-      'floki': 'BNB', 'baby-doge-coin': 'BNB',
-      'shiba-inu': 'ETH', 'pepe': 'ETH', 'turbo': 'ETH',
-    };
+    const tokens = data.tokens;
+    if (!Array.isArray(tokens) || tokens.length === 0) {
+      throw new Error('Sin tokens en la respuesta');
+    }
 
     const emojiMap = {
-      'bonk': '🐕', 'dogwifhat': '🐶', 'popcat': '🐱', 'book-of-meme': '💣',
-      'degen-base': '🎰', 'brett': '🐸', 'toshi': '🐱',
-      'floki': '⚡', 'baby-doge-coin': '🐶',
-      'shiba-inu': '🐕', 'pepe': '🐸', 'turbo': '🚀',
+      BONK:'🐕', WIF:'🐶', POPCAT:'🐱', BRETT:'🐸', DEGEN:'🎰',
+      PEPE:'🐸', SHIB:'🐕', FLOKI:'⚡', TURBO:'🚀', BOME:'💣',
+      MON:'🟣', BABYDOGE:'🐶', CAKE:'🎂', TOSHI:'🐱', NORMIE:'😐',
     };
 
-    const signals = coins.map((coin, i) => {
-      // Score basado en datos reales
-      const turnover   = coin.total_volume / (coin.market_cap || 1);
-      const volScore   = Math.min(40, turnover * 400);
-      const priceScore = Math.min(30, Math.max(0, coin.price_change_percentage_24h_in_currency || 0));
-      const mcapScore  = (coin.market_cap || 0) < 100_000_000 ? 20 : 10;
-      const score      = Math.round(Math.min(100, 50 + volScore + priceScore / 3 + mcapScore));
-      const strength   = score >= 80 ? 'strong' : score >= 65 ? 'medium' : 'weak';
+    const chainMap = {
+      BASE:'BASE', SOLANA:'SOL', SOL:'SOL',
+      ETHEREUM:'ETH', ETH:'ETH',
+      BNB:'BNB', BSCMAINNET:'BNB', MONAD:'MONAD', RH:'RH',
+    };
+
+    return tokens.map((t, i) => {
+      const symbol   = (t.token && t.token.symbol  ? t.token.symbol  : '???').toUpperCase();
+      const name     =  t.token && t.token.name    ? t.token.name    : symbol;
+      const address  =  t.token && t.token.address ? t.token.address : '';
+      const network  = (t.network || 'SOL').toUpperCase();
+      const chain    = chainMap[network] || network.slice(0, 5);
+      const holders  = t.holders      || 0;
+      const change24 = t.change24h    || 0;
+      const mcap     = t.marketCapUsd || 0;
+      const price    = t.priceUsd     || 0;
+      const rank     = t.rank         || (i + 1);
+
+      const rankScore   = Math.max(0, 30 - rank);
+      const changeScore = Math.min(35, Math.max(0, change24 * 0.8));
+      const holderScore = Math.min(20, holders / 100);
+      const mcapScore   = mcap < 50000000 ? 15 : 8;
+      const score       = Math.round(Math.min(100, 10 + rankScore + changeScore + holderScore + mcapScore));
+      const strength    = score >= 80 ? 'strong' : score >= 62 ? 'medium' : 'weak';
 
       return {
-        id:        `${coin.id}-${Date.now()}-${i}`,
-        token:     coin.symbol.toUpperCase(),
-        chain:     chainMap[coin.id] || 'ETH',
-        emoji:     emojiMap[coin.id] || '💎',
-        strength,
-        score,
-        change1h:  parseFloat((coin.price_change_percentage_1h_in_currency  || 0).toFixed(2)),
-        change24h: parseFloat((coin.price_change_percentage_24h_in_currency || 0).toFixed(2)),
-        volume:    parseFloat((coin.total_volume / 1_000_000).toFixed(1)),
-        mcap:      parseFloat(((coin.market_cap || 0) / 1_000_000).toFixed(0)),
-        holders:   Math.floor((coin.market_cap || 0) / 500),
-        momentum:  Math.min(95, Math.max(30, score + (Math.random() * 10 - 5))),
-        timestamp: new Date(),
-        price:     coin.current_price || 0,
-        isDemo:    false,       // ← datos reales
+        id:        'fomo-' + (address || i) + '-' + Date.now(),
+        rank, token: symbol, name, address, chain,
+        emoji:     emojiMap[symbol] || (CHAIN_EMOJI[chain] || '💎'),
+        strength,  score,
+        change24h: parseFloat(change24.toFixed(2)),
+        price:     price < 0.001 ? price.toExponential(2) : price.toFixed(price < 1 ? 6 : 4),
+        mcap:      parseFloat((mcap / 1000000).toFixed(1)),
+        holders,
+        momentum:  Math.min(98, Math.max(25, score + (Math.random() * 6 - 3))),
+        timestamp: new Date(data.capturedAt || Date.now()),
+        isDemo:    false,
       };
-    });
+    }).sort((a, b) => a.rank - b.rank);
 
-    return signals.sort((a, b) => b.score - a.score);
-
-  } catch (error) {
-    // ── PLAN B: si la API falla, usar datos demo ──
-    console.warn('⚠️ API no disponible, usando datos demo:', error.message);
-    dot.className   = 'status-dot offline';
-    txt.textContent = '⚠️ Demo (API no disponible)';
-    showToast('⚠️ API no disponible — mostrando datos demo');
-    return generateSignals(); // ← AQUÍ NECESITA generateSignals()
+  } catch (err) {
+    console.warn('fomoapi.io no disponible:', err.message);
+    document.getElementById('statusDot').className = 'status-dot offline';
+    document.getElementById('statusText').textContent = '⚠️ Demo (API no disponible)';
+    showToast('⚠️ Mostrando datos demo — configura tu API Key en Vercel', 5000);
+    return generateDemoSignals();
   }
 }
 
-// ─────────────────────────────────────────────
-//  RENDER — Tarjeta individual
-// ─────────────────────────────────────────────
+// ── Copiar dirección al portapapeles ──
+function copyAddress(address, token) {
+  if (!address) {
+    showToast('⚠️ Este token no tiene dirección disponible', 3000);
+    return;
+  }
+  navigator.clipboard.writeText(address)
+    .then(() => {
+      showToast('✅ ' + token + ' copiado: ' + address.slice(0,6) + '...' + address.slice(-4));
+    })
+    .catch(() => {
+      const el = document.createElement('textarea');
+      el.value = address;
+      el.style.position = 'fixed';
+      el.style.opacity  = '0';
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      showToast('✅ ' + token + ' copiado al portapapeles');
+    });
+}
+
+// ── Render tarjeta ──
 function renderSignalCard(s) {
   const badgeClass = s.strength === 'strong' ? 'badge-strong'
-                   : s.strength === 'medium' ? 'badge-medium'
-                   : 'badge-weak';
-
+                   : s.strength === 'medium' ? 'badge-medium' : 'badge-weak';
   const badgeLabel = s.strength === 'strong' ? '🔥 Fuerte'
-                   : s.strength === 'medium' ? '📈 Media'
-                   : '📊 Débil';
+                   : s.strength === 'medium' ? '📈 Media'   : '📊 Débil';
+  const barClass   = s.score >= 82 ? 'fill-green'
+                   : s.score >= 65 ? 'fill-yellow'          : 'fill-red';
+  const pnlUp      = s.change24h >= 0;
 
-  const barClass = s.score >= 85 ? 'fill-green'
-                 : s.score >= 70 ? 'fill-yellow'
-                 : 'fill-red';
+  const sec     = Math.floor((Date.now() - new Date(s.timestamp)) / 1000);
+  const timeAgo = sec < 60 ? sec + 's' : sec < 3600 ? Math.floor(sec/60) + 'm' : Math.floor(sec/3600) + 'h';
 
-  const c1h  = s.change1h  >= 0;
-  const c24h = s.change24h >= 0;
+  const shortAddr = s.address
+    ? s.address.slice(0,6) + '...' + s.address.slice(-4)
+    : 'Sin dirección';
 
-  const sec    = Math.floor((Date.now() - new Date(s.timestamp)) / 1000);
-  const timeAgo = sec < 60
-    ? `${sec}s`
-    : sec < 3600
-      ? `${Math.floor(sec / 60)}m`
-      : `${Math.floor(sec / 3600)}h`;
+  const sourceTag = s.isDemo
+    ? '<span class="source-tag demo">⚠️ DEMO</span>'
+    : '<span class="source-tag real">✅ fomo.family</span>';
 
-  const demoTag = s.isDemo
-    ? '<span style="color:#f59e0b;font-size:10px;">⚠️ DEMO</span>'
-    : '<span style="color:#22c55e;font-size:10px;">✅ REAL</span>';
+  const safeAddress = s.address ? s.address.replace(/'/g, '') : '';
+  const safeToken   = s.token.replace(/'/g, '');
 
   return `
     <article class="signal-card ${s.strength}" data-chain="${s.chain}" data-id="${s.id}">
@@ -214,8 +189,18 @@ function renderSignalCard(s) {
         <div class="signal-token">
           <div class="token-icon">${s.emoji}</div>
           <div>
-            <div class="token-name">${s.token}</div>
-            <span class="token-chain">${s.chain}</span>
+            <div class="token-name">
+              #${s.rank} ${s.token}
+              <span class="chain-mini">${CHAIN_EMOJI[s.chain] || ''} ${s.chain}</span>
+            </div>
+            <button
+              class="address-btn"
+              onclick="copyAddress('${safeAddress}','${safeToken}')"
+              title="Copiar dirección del contrato"
+            >
+              <span class="address-text">${shortAddr}</span>
+              <span class="copy-icon">📋</span>
+            </button>
           </div>
         </div>
         <span class="signal-badge ${badgeClass}">${badgeLabel}</span>
@@ -223,20 +208,14 @@ function renderSignalCard(s) {
 
       <div class="signal-stats">
         <div class="signal-stat">
-          <span class="signal-stat-label">1h</span>
-          <span class="signal-stat-value ${c1h ? 'up' : 'down'}">
-            ${c1h ? '+' : ''}${s.change1h}%
+          <span class="signal-stat-label">Cambio 24h</span>
+          <span class="signal-stat-value ${pnlUp ? 'up' : 'down'}">
+            ${pnlUp ? '+' : ''}${s.change24h}%
           </span>
         </div>
         <div class="signal-stat">
-          <span class="signal-stat-label">24h</span>
-          <span class="signal-stat-value ${c24h ? 'up' : 'down'}">
-            ${c24h ? '+' : ''}${s.change24h}%
-          </span>
-        </div>
-        <div class="signal-stat">
-          <span class="signal-stat-label">Vol</span>
-          <span class="signal-stat-value">$${s.volume}M</span>
+          <span class="signal-stat-label">Precio</span>
+          <span class="signal-stat-value">$${s.price}</span>
         </div>
         <div class="signal-stat">
           <span class="signal-stat-label">MCap</span>
@@ -248,15 +227,19 @@ function renderSignalCard(s) {
         </div>
         <div class="signal-stat">
           <span class="signal-stat-label">Score</span>
-          <span class="signal-stat-value ${s.score >= 85 ? 'up' : s.score >= 70 ? '' : 'down'}">
-            ${s.score}
+          <span class="signal-stat-value ${s.score>=80?'up':s.score>=62?'':'down'}">
+            ${s.score}/100
           </span>
+        </div>
+        <div class="signal-stat">
+          <span class="signal-stat-label">Rank</span>
+          <span class="signal-stat-value">#${s.rank}</span>
         </div>
       </div>
 
       <div class="signal-bar-wrap">
         <div class="signal-bar-label">
-          <span>Momentum</span>
+          <span>Momentum fomo.family</span>
           <span>${Math.round(s.momentum)}%</span>
         </div>
         <div class="signal-bar">
@@ -265,79 +248,72 @@ function renderSignalCard(s) {
         </div>
       </div>
 
+      ${s.address ? `
+      <div class="full-address-wrap">
+        <span class="full-address-label">Contrato:</span>
+        <span class="full-address">${s.address}</span>
+        <button
+          class="btn-copy-full"
+          onclick="copyAddress('${safeAddress}','${safeToken}')"
+        >📋 Copiar</button>
+      </div>` : ''}
+
       <div class="signal-footer">
         <span>🕐 hace ${timeAgo}</span>
-        ${demoTag}
-        <span>📡 Score: ${s.score}/100</span>
+        ${sourceTag}
+        <span>👥 ${s.holders.toLocaleString()} holders</span>
       </div>
 
     </article>
   `;
 }
 
-// ─────────────────────────────────────────────
-//  RENDER — Grid completo con filtros
-// ─────────────────────────────────────────────
+// ── Render grid ──
 function renderSignals() {
   const grid = document.getElementById('signalsGrid');
+  let list   = allSignals;
 
-  let filtered = allSignals;
+  if      (currentFilter === 'strong') list = allSignals.filter(s => s.strength === 'strong');
+  else if (currentFilter !== 'all')   list = allSignals.filter(s => s.chain === currentFilter);
 
-  if (currentFilter === 'strong') {
-    filtered = allSignals.filter(s => s.strength === 'strong');
-  } else if (currentFilter !== 'all') {
-    filtered = allSignals.filter(s => s.chain === currentFilter);
-  }
-
-  if (filtered.length === 0) {
+  if (list.length === 0) {
     grid.innerHTML = `
       <div class="empty-state" style="grid-column:1/-1">
         <div class="icon">🔍</div>
-        <p>No hay señales para este filtro ahora mismo.</p>
-        <p style="font-size:12px">Prueba otro filtro o espera la próxima actualización.</p>
+        <p>Sin señales para este filtro.</p>
+        <p style="font-size:12px">Prueba "Todas" o espera la próxima actualización.</p>
       </div>`;
     return;
   }
-
-  grid.innerHTML = filtered.map(renderSignalCard).join('');
+  grid.innerHTML = list.map(renderSignalCard).join('');
 }
 
-// ─────────────────────────────────────────────
-//  STATS BAR
-// ─────────────────────────────────────────────
+// ── Stats bar ──
 function updateStats() {
   const strong  = allSignals.filter(s => s.strength === 'strong');
-  const winRate = allSignals.length > 0
-    ? Math.round((strong.length / allSignals.length) * 100)
-    : 0;
-  const best = allSignals[0];
-  const now  = new Date().toLocaleTimeString('es-ES', {
-    hour: '2-digit', minute: '2-digit'
-  });
+  const best    = allSignals[0];
+  const winRate = allSignals.length
+    ? Math.round((strong.length / allSignals.length) * 100) : 0;
+  const now = new Date().toLocaleTimeString('es-ES', { hour:'2-digit', minute:'2-digit' });
 
   document.getElementById('totalSignals').textContent = allSignals.length;
-  document.getElementById('winRate').textContent      = `${winRate}%`;
-  document.getElementById('bestSignal').textContent   = best
-    ? `${best.token} ${best.score}`
-    : '—';
+  document.getElementById('winRate').textContent      = winRate + '%';
+  document.getElementById('bestSignal').textContent   = best ? best.token + ' #' + best.rank : '—';
   document.getElementById('lastUpdate').textContent   = now;
 }
 
-// ─────────────────────────────────────────────
-//  TOAST
-// ─────────────────────────────────────────────
-function showToast(msg) {
-  const t = document.getElementById('toast');
+// ── Toast ──
+function showToast(msg, duration) {
+  duration = duration || 2800;
+  const t  = document.getElementById('toast');
   if (!t) return;
   t.textContent = msg;
   t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2800);
+  setTimeout(function() { t.classList.remove('show'); }, duration);
 }
 
-// ─────────────────────────────────────────────
-//  CARGAR DATOS — Orquesta todo
-// ─────────────────────────────────────────────
-function loadData(showSpinner = false) {
+// ── Cargar datos ──
+function loadData(showSpinner) {
   const loading = document.getElementById('loadingState');
   const grid    = document.getElementById('signalsGrid');
   const dot     = document.getElementById('statusDot');
@@ -348,30 +324,25 @@ function loadData(showSpinner = false) {
     grid.style.display    = 'none';
   }
 
-  // Llama a datos reales (con fallback automático a demo si falla)
-  fetchRealSignals()
-    .then(signals => {
-      allSignals = signals;
-
+  fetchFomoTokens(currentTab)
+    .then(function(signals) {
+      allSignals            = signals;
       loading.style.display = 'none';
       grid.style.display    = 'grid';
-
       updateStats();
       renderSignals();
 
-      // Solo actualizar status si no está en modo offline/demo
-      if (!signals[0]?.isDemo) {
+      if (!signals[0] || !signals[0].isDemo) {
         dot.className   = 'status-dot online';
-        txt.textContent = '✅ Datos reales';
-        showToast('✅ Señales reales actualizadas');
+        txt.textContent = '✅ fomo.family en vivo';
+        showToast('✅ ' + signals.length + ' señales reales de fomo.family');
       }
     })
-    .catch(err => {
-      // Error inesperado (no debería llegar aquí por el try/catch interno)
+    .catch(function(err) {
       console.error('Error crítico:', err);
       loading.style.display = 'none';
       grid.style.display    = 'grid';
-      allSignals = generateSignals();
+      allSignals = generateDemoSignals();
       updateStats();
       renderSignals();
       dot.className   = 'status-dot offline';
@@ -379,54 +350,42 @@ function loadData(showSpinner = false) {
     });
 }
 
-// ─────────────────────────────────────────────
-//  INICIALIZAR APP
-// ─────────────────────────────────────────────
+// ── Inicializar ──
 function init() {
-  // Carga inicial con spinner
   loadData(true);
+  refreshTimer = setInterval(function() { loadData(false); }, REFRESH_MS);
 
-  // Auto-refresh cada 60 segundos
-  refreshTimer = setInterval(() => loadData(false), REFRESH_INTERVAL);
-
-  // Botón refresh manual
-  const btn = document.getElementById('btnRefresh');
+  var btn = document.getElementById('btnRefresh');
   if (btn) {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', function() {
       btn.classList.add('spinning');
-      setTimeout(() => btn.classList.remove('spinning'), 600);
-
+      setTimeout(function() { btn.classList.remove('spinning'); }, 600);
       clearInterval(refreshTimer);
       loadData(false);
-      refreshTimer = setInterval(() => loadData(false), REFRESH_INTERVAL);
+      refreshTimer = setInterval(function() { loadData(false); }, REFRESH_MS);
     });
   }
 
-  // Filtros
-  document.querySelectorAll('.filter-btn').forEach(b => {
-    b.addEventListener('click', () => {
+  document.querySelectorAll('[data-tab]').forEach(function(b) {
+    b.addEventListener('click', function() {
+      document.querySelectorAll('[data-tab]')
+        .forEach(function(x) { x.classList.remove('active'); });
+      b.classList.add('active');
+      currentTab = b.dataset.tab;
+      loadData(true);
+    });
+  });
+
+  document.querySelectorAll('.filter-btn').forEach(function(b) {
+    b.addEventListener('click', function() {
       document.querySelectorAll('.filter-btn')
-        .forEach(x => x.classList.remove('active'));
+        .forEach(function(x) { x.classList.remove('active'); });
       b.classList.add('active');
       currentFilter = b.dataset.filter;
       renderSignals();
     });
   });
-
-  // Clic en tarjeta → info rápida
-  const gridEl = document.getElementById('signalsGrid');
-  if (gridEl) {
-    gridEl.addEventListener('click', e => {
-      const card = e.target.closest('.signal-card');
-      if (!card) return;
-      const sig = allSignals.find(s => s.id === card.dataset.id);
-      if (sig) {
-        const tipo = sig.isDemo ? '⚠️ DEMO' : '✅ REAL';
-        showToast(`${sig.emoji} ${sig.token} — Score: ${sig.score}/100 | ${sig.chain} | ${tipo}`);
-      }
-    });
-  }
 }
 
-// Arrancar cuando el DOM esté listo
+window.copyAddress = copyAddress;
 document.addEventListener('DOMContentLoaded', init);
