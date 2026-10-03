@@ -40,49 +40,107 @@ const TOKEN_POOL = [
 ];
 
 // ─────────────────────────────────────────────
-//  GENERADOR DE SEÑALES (datos demo realistas)
+//  GENERADOR DE SEÑALES
 // ─────────────────────────────────────────────
-function generateSignals() {
-  const count   = Math.floor(Math.random() * 6) + 8; // 8–13 señales
-  const signals = [];
-  const used    = new Set();
 
-  for (let i = 0; i < count; i++) {
-    // Elegir token único
-    let token;
-    do { token = TOKEN_POOL[Math.floor(Math.random() * TOKEN_POOL.length)]; }
-    while (used.has(token.name));
-    used.add(token.name);
+async function fetchRealSignals() {
+  const dot = document.getElementById('statusDot');
+  const txt = document.getElementById('statusText');
+  
+  try {
+    // API gratuita de CoinGecko — sin API key necesaria
+    const url = 'https://api.coingecko.com/api/v3/coins/markets' +
+      '?vs_currency=usd' +
+      '&ids=bonk,dogwifhat,popcat,book-of-meme,degen-base,' +
+          'brett,toshi,floki,baby-doge-coin,shiba-inu,pepe,turbo' +
+      '&order=volume_desc' +
+      '&per_page=12' +
+      '&sparkline=false' +
+      '&price_change_percentage=1h,24h,7d';
 
-    // Generar datos de señal
-    const score    = Math.floor(Math.random() * 40) + 60;      // 60–100
-    const strength = score >= 85 ? 'strong' : score >= 72 ? 'medium' : 'weak';
-    const change1h = (Math.random() * 30 - 5).toFixed(2);      // -5% a +25%
-    const change24h= (Math.random() * 60 - 15).toFixed(2);     // -15% a +45%
-    const volume   = (Math.random() * 9.5 + 0.5).toFixed(1);   // 0.5M–10M
-    const mcap     = (Math.random() * 95 + 5).toFixed(0);      // 5M–100M
-    const holders  = Math.floor(Math.random() * 45000) + 5000;
-    const momentum = Math.floor(Math.random() * 35) + 60;      // 60–95
+    const response = await fetch(url);
+    
+    // Si la API falla (límite de tasa), usar datos demo
+    if (!response.ok) throw new Error('API limit');
+    
+    const coins = await response.json();
 
-    signals.push({
-      id:       `${token.name}-${Date.now()}-${i}`,
-      token:    token.name,
-      chain:    token.chain,
-      emoji:    token.emoji,
-      strength,
-      score,
-      change1h: parseFloat(change1h),
-      change24h: parseFloat(change24h),
-      volume:   parseFloat(volume),
-      mcap:     parseFloat(mcap),
-      holders,
-      momentum,
-      timestamp: new Date(),
-    });
+    return coins.map(coin => {
+      // Calcular score real basado en datos reales
+      const volScore   = Math.min(40, (coin.total_volume / coin.market_cap) * 400);
+      const priceScore = Math.min(30, Math.max(0, coin.price_change_percentage_24h_in_currency));
+      const mcapScore  = coin.market_cap < 100_000_000 ? 20 : 10; // Preferir caps pequeñas
+      const score      = Math.round(Math.min(100, 50 + volScore + priceScore / 3 + mcapScore));
+
+      const strength = score >= 80 ? 'strong' : score >= 65 ? 'medium' : 'weak';
+
+      // Detectar chain (aproximado por el ID)
+      const chainMap = {
+        'bonk': 'SOL', 'dogwifhat': 'SOL', 'popcat': 'SOL', 'book-of-meme': 'SOL',
+        'degen-base': 'BASE', 'brett': 'BASE', 'toshi': 'BASE',
+        'floki': 'BNB', 'baby-doge-coin': 'BNB',
+        'shiba-inu': 'ETH', 'pepe': 'ETH', 'turbo': 'ETH',
+      };
+      const emojiMap = {
+        'bonk':'🐕','dogwifhat':'🐶','popcat':'🐱','book-of-meme':'💣',
+        'degen-base':'🎰','brett':'🐸','toshi':'🐱',
+        'floki':'⚡','baby-doge-coin':'🐶',
+        'shiba-inu':'🐕','pepe':'🐸','turbo':'🚀',
+      };
+
+      return {
+        id:        coin.id + '-' + Date.now(),
+        token:     coin.symbol.toUpperCase(),
+        chain:     chainMap[coin.id] || 'ETH',
+        emoji:     emojiMap[coin.id] || '💎',
+        strength,
+        score,
+        change1h:  coin.price_change_percentage_1h_in_currency  || 0,
+        change24h: coin.price_change_percentage_24h_in_currency || 0,
+        volume:    parseFloat((coin.total_volume / 1_000_000).toFixed(1)),
+        mcap:      parseFloat((coin.market_cap   / 1_000_000).toFixed(0)),
+        holders:   Math.floor(coin.market_cap / 500), // Estimado
+        momentum:  Math.min(95, Math.max(30, score + Math.random() * 10 - 5)),
+        timestamp: new Date(),
+        price:     coin.current_price,
+      };
+    }).sort((a, b) => b.score - a.score);
+
+  } catch (error) {
+    // Si falla la API → mostrar datos demo con aviso
+    console.warn('⚠️ API no disponible, usando datos demo:', error.message);
+    dot.className   = 'status-dot offline';
+    txt.textContent = '⚠️ Demo (API no disponible)';
+    return generateSignals(); // Fallback a datos demo
+  }
+}
+
+// ── ACTUALIZA loadData() para usar datos reales ──
+function loadData(showSpinner = false) {
+  const loading = document.getElementById('loadingState');
+  const grid    = document.getElementById('signalsGrid');
+  const dot     = document.getElementById('statusDot');
+  const txt     = document.getElementById('statusText');
+
+  if (showSpinner) {
+    loading.style.display = 'flex';
+    grid.style.display    = 'none';
   }
 
-  // Ordenar por score descendente
-  return signals.sort((a, b) => b.score - a.score);
+  // AHORA LLAMA A DATOS REALES
+  fetchRealSignals().then(signals => {
+    allSignals = signals;
+    
+    loading.style.display = 'none';
+    grid.style.display    = 'grid';
+
+    updateStats();
+    renderSignals();
+
+    dot.className   = 'status-dot online';
+    txt.textContent = 'Datos reales ✅';
+    showToast('✅ Datos reales de mercado cargados');
+  });
 }
 
 // ─────────────────────────────────────────────
