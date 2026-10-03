@@ -396,3 +396,111 @@ body {
   line-height: 1.8;
 }
 .footer-note { font-size: 10px; opacity: 0.6; }
+/* ── TABS DE BOARDS ── */
+.time-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 10px 20px 0;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+}
+.tab-btn {
+  padding: 6px 18px;
+  border-radius: 8px 8px 0 0;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all var(--transition);
+}
+.tab-btn.active,
+.tab-btn:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+/* ── CHAIN MINI ── */
+.chain-mini {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-weight: 400;
+  margin-left: 6px;
+}
+
+/* ── BOTÓN DIRECCIÓN CORTA ── */
+.address-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 3px;
+  padding: 3px 8px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.address-btn:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.address-text {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: monospace;
+}
+.address-btn:hover .address-text { color: white; }
+.copy-icon { font-size: 12px; }
+
+/* ── DIRECCIÓN COMPLETA ── */
+.full-address-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.full-address-label {
+  font-size: 10px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.full-address {
+  font-family: monospace;
+  font-size: 10px;
+  color: var(--text-primary);
+  word-break: break-all;
+  flex: 1;
+  min-width: 0;
+  user-select: all;
+}
+.btn-copy-full {
+  padding: 4px 10px;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 11px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--transition);
+}
+.btn-copy-full:hover { background: #4f46e5; }
+
+/* ── TAGS REAL / DEMO ── */
+.source-tag {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+.source-tag.real { background: rgba(34,197,94,.15); color: var(--green); }
+.source-tag.demo { background: rgba(245,158,11,.15); color: var(--yellow); }
