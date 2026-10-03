@@ -515,3 +515,217 @@ body {
   border-radius: 6px;
   margin-right: 2px;
 }
+/* ════════════════════════════════════════
+   SISTEMA DE SEÑALES LED
+   ════════════════════════════════════════ */
+
+/* ── Barra LED completa (arriba de la tarjeta) ── */
+.led-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius) var(--radius) 0 0;
+  margin: -16px -16px 14px -16px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.led-bar.led-buy  { background: rgba(34, 197, 94, 0.12); }
+.led-bar.led-wait { background: rgba(245,158, 11, 0.12); }
+.led-bar.led-sell { background: rgba(239, 68, 68, 0.12); }
+
+/* ── El LED en sí (círculo luminoso) ── */
+.led-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.led-dot.led-buy {
+  background: #22c55e;
+  box-shadow: 0 0 6px #22c55e, 0 0 12px #22c55e;
+}
+.led-dot.led-wait {
+  background: #f59e0b;
+  box-shadow: 0 0 6px #f59e0b, 0 0 12px #f59e0b;
+}
+.led-dot.led-sell {
+  background: #ef4444;
+  box-shadow: 0 0 6px #ef4444, 0 0 12px #ef4444;
+}
+
+/* ── LED verde parpadea (señal activa) ── */
+.led-pulse {
+  animation: ledPulse 1.5s ease-in-out infinite;
+}
+@keyframes ledPulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px #22c55e, 0 0 14px #22c55e; }
+  50%       { opacity: 0.5; box-shadow: 0 0 2px #22c55e; }
+}
+
+/* ── Texto junto al LED ── */
+.led-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+}
+.led-label {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.led-bar.led-buy  .led-label { color: #22c55e; }
+.led-bar.led-wait .led-label { color: #f59e0b; }
+.led-bar.led-sell .led-label { color: #ef4444; }
+
+.led-reason {
+  font-size: 10px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Puntuación de factores ── */
+.led-score {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Borde izquierdo de la tarjeta según señal ── */
+.signal-card.strong[class*="strong"] { }
+
+.signal-card:has(.led-bar.led-buy) {
+  border-left: 3px solid #22c55e;
+}
+.signal-card:has(.led-bar.led-wait) {
+  border-left: 3px solid #f59e0b;
+}
+.signal-card:has(.led-bar.led-sell) {
+  border-left: 3px solid #ef4444;
+}
+
+/* ── Rank badge ── */
+.rank-badge {
+  display: inline-block;
+  background: var(--accent);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 6px;
+  margin-right: 2px;
+}
+
+/* ── Chain mini ── */
+.chain-mini {
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-weight: 400;
+  margin-left: 4px;
+}
+
+/* ── Address btn ── */
+.address-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 3px;
+  padding: 3px 8px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.address-btn:hover { background: var(--accent); border-color: var(--accent); }
+.address-text {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: monospace;
+}
+.address-btn:hover .address-text { color: white; }
+.copy-icon { font-size: 12px; }
+
+/* ── Dirección completa ── */
+.full-address-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.full-address-label {
+  font-size: 10px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.full-address {
+  font-family: monospace;
+  font-size: 10px;
+  color: var(--text-primary);
+  word-break: break-all;
+  flex: 1;
+  min-width: 0;
+  user-select: all;
+}
+.btn-copy-full {
+  padding: 4px 10px;
+  background: var(--accent);
+  border: none;
+  border-radius: 6px;
+  color: white;
+  font-size: 11px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--transition);
+}
+.btn-copy-full:hover { background: #4f46e5; }
+
+/* ── Source tags ── */
+.source-tag {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+.source-tag.real { background: rgba(34,197,94,.15); color: var(--green); }
+.source-tag.demo { background: rgba(245,158,11,.15); color: var(--yellow); }
+
+/* ── Tabs ── */
+.time-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 10px 20px 0;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+}
+.tab-btn {
+  padding: 6px 18px;
+  border-radius: 8px 8px 0 0;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all var(--transition);
+}
+.tab-btn.active,
+.tab-btn:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
