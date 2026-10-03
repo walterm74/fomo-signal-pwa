@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="description" content="FOMO Smart Signal Dashboard — Señales cripto en tiempo real" />
+
+  <!-- PWA iOS -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="FOMO Signals" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+
+  <title>FOMO Smart Signal Dashboard</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ══════════════ HEADER ══════════════ -->
+  <header class="header">
+    <div class="header-left">
+      <span class="logo">⚡</span>
+      <div>
+        <h1 class="app-title">FOMO Signals</h1>
+        <p class="app-subtitle">Smart Signal Dashboard</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="status-dot" id="statusDot"></div>
+      <span class="status-text" id="statusText">Conectando...</span>
+      <button class="btn-refresh" id="btnRefresh" title="Actualizar">↻</button>
+    </div>
+  </header>
+
+  <!-- ══════════════ STATS BAR ══════════════ -->
+  <section class="stats-bar">
+    <div class="stat-card">
+      <span class="stat-label">Señales Hoy</span>
+      <span class="stat-value" id="totalSignals">—</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Win Rate</span>
+      <span class="stat-value green" id="winRate">—</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Mejor Señal</span>
+      <span class="stat-value yellow" id="bestSignal">—</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Actualizado</span>
+      <span class="stat-value" id="lastUpdate">—</span>
+    </div>
+  </section>
+
+  <!-- ══════════════ FILTROS ══════════════ -->
+  <section class="filters">
+    <button class="filter-btn active" data-filter="all">Todas</button>
+    <button class="filter-btn" data-filter="SOL">SOL</button>
+    <button class="filter-btn" data-filter="BASE">BASE</button>
+    <button class="filter-btn" data-filter="BNB">BNB</button>
+    <button class="filter-btn" data-filter="MONAD">MONAD</button>
+    <button class="filter-btn" data-filter="strong">🔥 Fuertes</button>
+  </section>
+
+  <!-- ══════════════ SEÑALES ══════════════ -->
+  <main class="signals-container" id="signalsContainer">
+    <div class="loading-state" id="loadingState">
+      <div class="spinner"></div>
+      <p>Cargando señales...</p>
+    </div>
+    <div class="signals-grid" id="signalsGrid"></div>
+  </main>
+
+  <!-- ══════════════ TOAST NOTIFICACIÓN ══════════════ -->
+  <div class="toast" id="toast"></div>
+
+  <!-- ══════════════ FOOTER ══════════════ -->
+  <footer class="footer">
+    <p>⚡ FOMO Smart Signal Dashboard • Uso personal</p>
+    <p class="footer-note">Los datos son orientativos. No son asesoramiento financiero.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

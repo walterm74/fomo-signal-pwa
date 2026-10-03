@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Generador de Iconos PWA</title>
+  <style>
+    body { font-family: sans-serif; background: #0f172a; color: #f1f5f9;
+           display:flex; flex-direction:column; align-items:center;
+           padding:40px 20px; gap:20px; }
+    h1   { color: #f59e0b; }
+    p    { color: #94a3b8; text-align:center; max-width:500px; }
+    canvas { border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,.6); }
+    .btns  { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; }
+    button {
+      padding:10px 20px; border-radius:8px; border:none; cursor:pointer;
+      background:#6366f1; color:white; font-weight:600; font-size:14px;
+    }
+    button:hover { background:#4f46e5; }
+    #log { background:#1e293b; border:1px solid #334155; border-radius:8px;
+           padding:16px; width:100%; max-width:500px; font-size:13px;
+           color:#22c55e; font-family:monospace; line-height:2; }
+  </style>
+</head>
+<body>
+
+<h1>⚡ Generador de Iconos PWA</h1>
+<p>Haz clic en "Generar y Descargar Todos" para obtener los iconos PNG necesarios para tu PWA.</p>
+<p style="color:#f59e0b; font-size:13px;">
+  📁 Después de descargar, mueve todos los archivos .png a la carpeta <strong>icons/</strong> de tu proyecto.
+</p>
+
+<!-- Preview del icono -->
+<canvas id="preview" width="256" height="256"></canvas>
+
+<div class="btns">
+  <button onclick="generateAll()">🎨 Generar y Descargar Todos</button>
+</div>
+
+<div id="log">Esperando...</div>
+
+<script>
+  const SIZES = [72, 96, 128, 144, 152, 192, 384, 512];
+  const log   = document.getElementById('log');
+
+  // Dibuja el ícono en un canvas dado
+  function drawIcon(canvas, size) {
+    const ctx = canvas.getContext('2d');
+    canvas.width  = size;
+    canvas.height = size;
+
+    const r = size / 2;
+
+    // Fondo degradado
+    const bg = ctx.createRadialGradient(r, r, 0, r, r, r);
+    bg.addColorStop(0, '#1e293b');
+    bg.addColorStop(1, '#0f172a');
+    ctx.fillStyle = bg;
+    ctx.beginPath();
+    ctx.roundRect(0, 0, size, size, size * 0.22);
+    ctx.fill();
+
+    // Círculo de brillo
+    const glow = ctx.createRadialGradient(r, r, 0, r, r, r * 0.8);
+    glow.addColorStop(0, 'rgba(99,102,241,0.3)');
+    glow.addColorStop(1, 'rgba(99,102,241,0)');
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(r, r, r * 0.8, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Texto ⚡
+    const fontSize = Math.round(size * 0.52);
+    ctx.font      = `${fontSize}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('⚡', r, r * 1.05);
+
+    // Anillo exterior
+    ctx.strokeStyle = '#6366f1';
+    ctx.lineWidth   = Math.max(2, size * 0.025);
+    ctx.beginPath();
+    ctx.roundRect(
+      size * 0.06, size * 0.06,
+      size * 0.88, size * 0.88,
+      size * 0.18
+    );
+    ctx.stroke();
+  }
+
+  // Preview en pantalla
+  drawIcon(document.getElementById('preview'), 256);
+
+  // Genera y descarga todos los tamaños
+  async function generateAll() {
+    log.textContent = 'Generando iconos...\n';
+
+    for (const size of SIZES) {
+      const c = document.createElement('canvas');
+      drawIcon(c, size);
+
+      await new Promise(resolve => {
+        c.toBlob(blob => {
+          const a    = document.createElement('a');
+          a.href     = URL.createObjectURL(blob);
+          a.download = `icon-${size}.png`;
+          a.click();
+          URL.revokeObjectURL(a.href);
+          log.textContent += `✅ icon-${size}.png descargado\n`;
+          resolve();
+        }, 'image/png');
+      });
+
+      // Pequeña pausa entre descargas
+      await new Promise(r => setTimeout(r, 300));
+    }
+
+    log.textContent += '\n🎉 ¡Todos los iconos listos!\n';
+    log.textContent += '📁 Muévelos a la carpeta icons/ de tu proyecto\n';
+  }
+
+  // Polyfill para roundRect si es necesario
+  if (!CanvasRenderingContext2D.prototype.roundRect) {
+    CanvasRenderingContext2D.prototype.roundRect = function(x, y, w, h, r) {
+      this.beginPath();
+      this.moveTo(x + r, y);
+      this.lineTo(x + w - r, y);
+      this.quadraticCurveTo(x + w, y, x + w, y + r);
+      this.lineTo(x + w, y + h - r);
+      this.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      this.lineTo(x + r, y + h);
+      this.quadraticCurveTo(x, y + h, x, y + h - r);
+      this.lineTo(x, y + r);
+      this.quadraticCurveTo(x, y, x + r, y);
+      this.closePath();
+    };
+  }
+</script>
+</body>
+</html>
